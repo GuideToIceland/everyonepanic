@@ -108,7 +108,7 @@ class CheckUptimes(webapp2.RequestHandler):
             for site in res['downsites']:
                 self.response.write("%s is down.\n" % site)
 
-            CALLEES.extend(get_people_on_shift())
+            CALLEES.extend(get_phone_numbers_on_shift())
             trigger_call(CALLEES)
         else:
             self.response.write("Everything seems fine\n")
