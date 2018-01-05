@@ -1,9 +1,24 @@
+# Check if we are running on Google App Engine
+def _is_gae():
+   import httplib
+   return 'appengine' in str(httplib.HTTP)
+
+# Check if we are running on appengine
+if (_is_gae()):
+    # appengine_config.py
+    from google.appengine.ext import vendor
+
+    # Add any libraries install in the "lib" folder.
+    vendor.add('lib')
+
 import contextlib
 import json
 import os
 import urllib2
 import webapp2
 from twilio.rest import TwilioRestClient
+from ics import Calendar
+from datetime import datetime
 
 # Calls you when your sites go down.
 # License is GPLv3.
@@ -13,6 +28,9 @@ TWILIO_SID = os.environ['TWILIO_SID']
 TWILIO_TOKEN = os.environ['TWILIO_TOKEN']
 TWILIO_FROM = os.environ['TWILIO_FROM']
 CALLEES = os.environ['CALLEES'].split(',')
+
+ICAL_PARSE_FROM_URL = os.environ['ICAL_PARSE_FROM_URL'].lower() in ['true', '1', 't', 'y', 'yes']
+ICAL_URL = os.environ['ICAL_URL']
 
 UPTIME_ROBOT_KEY = os.environ['UPTIME_ROBOT_KEY']
 UPTIME_ROBOT = "http://api.uptimerobot.com/getMonitors?apiKey=" + UPTIME_ROBOT_KEY + "&format=json&noJsonCallback=1"
@@ -53,6 +71,32 @@ def trigger_call(recipients):
         call = client.calls.create(url=("http://%s/downmessage" % APP_HOSTNAME),
             to=recp, from_=TWILIO_FROM)
 
+def get_phone_numbers_on_shift():
+    if not ICAL_PARSE_FROM_URL:
+        return []
+    phoneNumbers = []
+    calendar = Calendar(urllib2.urlopen(ICAL_URL).read().decode('iso-8859-1'))
+    for event in calendar.events:
+        present = datetime.now(event.begin.tzinfo)
+        if event.begin < present and event.end > present:
+            phoneNumbers.extend(get_phone_numbers_from_ical_description(event.description))
+
+    return phoneNumbers
+def get_phone_numbers_from_ical_description(description):
+    lines = description.split("\n");
+    buffer = [];
+    for line in lines:
+        phonePlusSign = line.find('+');
+        if phonePlusSign == 0 or (phonePlusSign > 0 and 'phone' in line.lower()):
+            if(phonePlusSign > 0):
+                line = line[phonePlusSign:]
+
+            phoneNumber = line.replace(' ', '').replace('-', '')
+
+            # Making sure the phone number have minimum length
+            if len(phoneNumber) > 7:
+                buffer.append(phoneNumber);
+    return buffer;
 
 class CheckUptimes(webapp2.RequestHandler):
     def get(self):
@@ -63,6 +107,8 @@ class CheckUptimes(webapp2.RequestHandler):
             self.response.write("Everybody panic!\n")
             for site in res['downsites']:
                 self.response.write("%s is down.\n" % site)
+
+            CALLEES.extend(get_phone_numbers_on_shift())
             trigger_call(CALLEES)
         else:
             self.response.write("Everything seems fine\n")

@@ -15,3 +15,5 @@ env_variables:
   TWILIO_FROM: '+15555555555'
   CALLEES: '+15551111111,+15552222222'
   UPTIME_ROBOT_KEY: 'u12345-badbeef0123456789'
+  ICAL_PARSE_FROM_URL: false
+  ICAL_URL: '<insert your ical path here>'
