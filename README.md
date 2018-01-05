@@ -62,3 +62,9 @@ that's done, you can just push it up to App Engine.
 If you're using Heroku, you need to use `heroku config` to set each
 environment variable as described above. Then, you can deploy the app to
 Heroku and set up a cron job as described above.
+
+
+If you are using google app engine use the following line to install the PIP libraries
+```
+pip install -t lib -r requirements.txt
+```
